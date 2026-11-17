@@ -126,7 +126,7 @@ export function categorize(tx, userRules = []) {
 export function applyRules(transactions, userRules = []) {
   let changed = 0;
   for (const tx of transactions) {
-    if (tx.manual) continue;
+    if (tx.manual || tx.splits) continue;
     const category = categorize(tx, userRules);
     if (category !== tx.category) {
       tx.category = category;

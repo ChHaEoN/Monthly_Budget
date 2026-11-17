@@ -163,3 +163,10 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
   .tabs { margin-left: 0; }
   td.desc { max-width: 180px; }
 }
+
+/* 拆分交易 */
+.btn.small { padding: 2px 8px; font-size: 12px; white-space: nowrap; }
+.splits { display: flex; flex-wrap: wrap; gap: 4px; }
+.splitrow { display: grid; grid-template-columns: 9em 1fr auto; gap: 8px; align-items: center; margin: 6px 0; }
+.splitrow input { width: 100%; }
+.splitrow .rest { color: var(--text-2); }

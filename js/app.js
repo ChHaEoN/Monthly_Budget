@@ -2,8 +2,8 @@ import { SOURCES, analyzeFile, analyzeRows, buildTransactions, decodeBytes, sugg
 import { readXlsx } from './xlsx.js';
 import { DEFAULT_RULES, RULES_VERSION, applyRules, suggestKeyword } from './categorize.js';
 import {
-  allCategories, emptyState, listMonths, loadState, mergeTransactions, monthOf, normalizeState,
-  saveState, shiftMonth, summarizeMonth, toCSV,
+  allCategories, emptyState, listMonths, loadState, mergeTransactions, monthOf, normalizeState, partsOf,
+  saveState, shiftMonth, summarizeMonth, toCSV, validSplits,
 } from './store.js';
 import * as folder from './folder.js';
 
@@ -210,14 +210,14 @@ function transactionsView() {
     const list = state.transactions
       .filter((t) => monthOf(t) === ui.month
         && (!ui.filter.source || t.source === ui.filter.source)
-        && (!ui.filter.category || t.category === ui.filter.category)
+        && (!ui.filter.category || partsOf(t).some((part) => part.category === ui.filter.category))
         && (!q || t.desc.toLowerCase().includes(q)))
       .sort((a, b) => b.date.localeCompare(a.date) || a.desc.localeCompare(b.desc));
     const total = list.reduce((sum, t) => sum + t.amount, 0);
     summary.textContent = `${list.length} 筆，合計 ${fmt(total)}`;
     body.replaceChildren(list.length
       ? h('div', { class: 'tablewrap' }, h('table', {},
-        h('thead', {}, h('tr', {}, h('th', {}, '日期'), h('th', {}, '說明'), h('th', {}, '來源'), h('th', {}, '分類'), h('th', { class: 'amount' }, '金額'))),
+        h('thead', {}, h('tr', {}, h('th', {}, '日期'), h('th', {}, '說明'), h('th', {}, '來源'), h('th', {}, '分類'), h('th', { class: 'amount' }, '金額'), h('th', {}))),
         h('tbody', {}, list.map(txRow))))
       : h('div', { class: 'empty' }, '沒有符合條件的交易'));
   };
@@ -225,8 +225,11 @@ function transactionsView() {
     h('td', { class: 'num' }, t.date.slice(5).replace('-', '/')),
     h('td', { class: 'desc', title: t.desc }, t.desc),
     h('td', {}, h('span', { class: 'badge' }, SOURCES[t.source] ?? t.source)),
-    h('td', {}, categorySelect(t.category, (v) => setCategory(t, v, update))),
-    h('td', { class: `amount num ${catType(t.category) === 'excluded' ? 'dim' : t.amount > 0 ? 'pos' : ''}` }, fmt(t.amount)),
+    h('td', {}, t.splits
+      ? h('div', { class: 'splits' }, t.splits.map((part) => h('span', { class: 'badge' }, `${catName(part.category)} ${fmt(part.amount)}`)))
+      : categorySelect(t.category, (v) => setCategory(t, v, update))),
+    h('td', { class: `amount num ${!t.splits && catType(t.category) === 'excluded' ? 'dim' : t.amount > 0 ? 'pos' : ''}` }, fmt(t.amount)),
+    h('td', { class: 'amount' }, h('button', { class: 'btn small', title: '把這筆交易拆成多個分類', onclick: () => splitDialog(t) }, t.splits ? '編輯拆分' : '拆分')),
   );
   const summary = h('span', { class: 'summary num' });
   const filters = h('div', { class: 'filters' },
@@ -244,7 +247,7 @@ function transactionsView() {
 function uncategorizedGroups() {
   const groups = new Map();
   for (const t of state.transactions) {
-    if (t.category !== 'uncat' || t.manual) continue;
+    if (t.category !== 'uncat' || t.manual || t.splits) continue;
     const keyword = suggestKeyword(t.desc);
     if (!keyword) continue;
     const g = groups.get(keyword) ?? { keyword, count: 0, total: 0, example: t.desc };
@@ -274,6 +277,73 @@ function quickCategorizeCard() {
         h('td', {}, categorySelect('', (v) => { if (v) addRule({ keyword: g.keyword, category: v, source: '' }); }, [['', '選擇分類…']]))))))),
     groups.length > 10 && h('p', { class: 'hint' },
       h('button', { class: 'link', onclick: () => { ui.allGroups = !ui.allGroups; render(); } }, ui.allGroups ? '只顯示前 10 個' : `顯示全部 ${groups.length} 個商家`)));
+}
+
+/** 拆分對話框：前面幾列自己填金額，最後一列自動是剩下的金額。 */
+function splitDialog(tx) {
+  const dlg = $('dialog');
+  const sign = Math.sign(tx.amount) || 1;
+  const total = Math.abs(tx.amount);
+  const parts = (tx.splits ?? [{ amount: 0, category: tx.category }, { amount: tx.amount, category: tx.category }])
+    .map((p) => ({ value: Math.abs(p.amount), category: p.category }));
+  const toNumber = (text) => Math.round(Number(String(text).replace(/\s/g, '').replace(',', '.')) * 100) / 100;
+  const body = h('div');
+  const saveBtn = h('button', { type: 'button', class: 'btn primary' }, '儲存拆分');
+
+  const remainder = () => Math.round((total - parts.slice(0, -1).reduce((sum, p) => sum + (p.value || 0), 0)) * 100) / 100;
+  const check = () => {
+    parts.at(-1).value = remainder();
+    const ok = parts.every((p) => Number.isFinite(p.value) && p.value > 0);
+    saveBtn.disabled = !ok;
+    return ok;
+  };
+  const draw = () => {
+    check();
+    const rest = h('span', { class: 'num' }, fmt(sign * parts.at(-1).value));
+    body.replaceChildren(
+      ...parts.map((p, i) => {
+        const last = i === parts.length - 1;
+        return h('div', { class: 'splitrow' },
+          last
+            ? h('span', { class: 'rest' }, '其餘 ', rest)
+            : h('input', { type: 'text', inputmode: 'decimal', 'aria-label': `第 ${i + 1} 部分金額`, placeholder: '金額', value: p.value ? String(p.value).replace('.', ',') : '',
+              oninput: (e) => { p.value = toNumber(e.target.value); check(); rest.textContent = fmt(sign * parts.at(-1).value); warn.hidden = parts.at(-1).value > 0; } }),
+          categorySelect(p.category, (v) => { p.category = v; }),
+          !last && parts.length > 2 ? h('button', { type: 'button', class: 'btn small', onclick: () => { parts.splice(i, 1); draw(); } }, '移除') : h('span'));
+      }),
+      warn);
+    warn.hidden = parts.at(-1).value > 0;
+  };
+  const warn = h('p', { class: 'hint neg' }, '各部分的金額加起來超過了這筆交易的總額。');
+
+  saveBtn.addEventListener('click', () => {
+    if (!check()) return;
+    const splits = parts.map((p) => ({ amount: sign * p.value, category: p.category }));
+    if (!validSplits(tx, splits)) return;
+    tx.splits = splits;
+    persist();
+    dlg.close();
+    render();
+    toast('已拆分這筆交易');
+  });
+  dlg.replaceChildren(
+    h('h2', {}, '拆分交易'),
+    h('p', {}, `${tx.date}　${tx.desc}`),
+    h('p', { class: 'notice' }, '總額 ', h('b', { class: 'num' }, fmt(tx.amount)), '。填入各部分的金額（不用加正負號），最後一列會自動算出剩下的金額。'),
+    body,
+    h('div', { class: 'actions' },
+      tx.splits ? h('button', { type: 'button', class: 'btn danger', style: 'margin-right:auto', onclick: () => {
+        delete tx.splits;
+        persist();
+        dlg.close();
+        render();
+        toast('已取消拆分');
+      } }, '取消拆分') : '',
+      h('button', { type: 'button', class: 'btn', onclick: () => { parts.splice(parts.length - 1, 0, { value: 0, category: tx.category }); draw(); } }, '再加一個部分'),
+      h('button', { type: 'button', class: 'btn', onclick: () => dlg.close() }, '關閉'),
+      saveBtn));
+  draw();
+  dlg.showModal();
 }
 
 function setCategory(tx, category, refresh) {
