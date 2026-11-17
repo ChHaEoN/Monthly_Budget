@@ -4,7 +4,7 @@ import { BASE_CATEGORIES, categorize } from './categorize.js';
 export const STORAGE_KEY = 'monthly-budget-v1';
 
 export function emptyState() {
-  return { version: 1, transactions: [], userRules: [], customCategories: [], importedFiles: [] };
+  return { version: 1, rulesVersion: 0, transactions: [], userRules: [], customCategories: [], importedFiles: [] };
 }
 
 export function normalizeState(raw) {

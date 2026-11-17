@@ -25,13 +25,13 @@ export const saveHandle = (handle) => withStore('readwrite', (s) => s.put(handle
 export const loadHandle = () => withStore('readonly', (s) => s.get(KEY));
 export const clearHandle = () => withStore('readwrite', (s) => s.delete(KEY));
 
-/** 列出資料夾（含兩層子資料夾）內的 CSV 檔。 */
-export async function listCsvFiles(dir, depth = 2, prefix = '') {
+/** 列出資料夾（含兩層子資料夾）內的帳單檔（CSV、Excel、PDF）。 */
+export async function listStatementFiles(dir, depth = 2, prefix = '') {
   const out = [];
   for await (const entry of dir.values()) {
     const path = prefix + entry.name;
-    if (entry.kind === 'file' && /\.csv$/i.test(entry.name)) out.push({ path, file: await entry.getFile() });
-    else if (entry.kind === 'directory' && depth > 0 && !entry.name.startsWith('.')) out.push(...await listCsvFiles(entry, depth - 1, `${path}/`));
+    if (entry.kind === 'file' && /\.(csv|xlsx|pdf)$/i.test(entry.name)) out.push({ path, file: await entry.getFile() });
+    else if (entry.kind === 'directory' && depth > 0 && !entry.name.startsWith('.')) out.push(...await listStatementFiles(entry, depth - 1, `${path}/`));
   }
   return out.sort((a, b) => a.path.localeCompare(b.path));
 }

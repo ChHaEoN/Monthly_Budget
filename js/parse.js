@@ -167,13 +167,17 @@ export function parseDate(raw) {
 }
 
 export function analyzeFile(text, filename = '') {
-  const rows = parseCSV(text);
+  return analyzeRows(parseCSV(text), filename);
+}
+
+/** 分析已拆成二維陣列的表格（CSV、Excel 或從 PDF 還原的列）。sourceHint：已知來源時覆蓋自動判斷。 */
+export function analyzeRows(rows, filename = '', sourceHint = '') {
   let headerIdx = findHeaderRow(rows);
   const detected = headerIdx !== -1;
   if (!detected) headerIdx = Math.max(0, rows.findIndex((r) => r.length >= 3));
   const headers = rows[headerIdx] ?? [];
   const mapping = guessMapping(headers);
-  const source = detectSource(headers, filename);
+  const source = sourceHint || detectSource(headers, filename);
   const analysis = { filename, rows, headerIdx, headers, mapping, source, detected };
   analysis.flip = suggestFlip(analysis, source);
   return analysis;
