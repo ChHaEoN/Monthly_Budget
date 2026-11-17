@@ -16,7 +16,24 @@ export function normalizeState(raw) {
   s.transactions = s.transactions.filter(
     (t) => t && /^\d{4}-\d{2}-\d{2}$/.test(t.date) && Number.isFinite(t.amount) && typeof t.desc === 'string',
   );
+  for (const t of s.transactions) if (t.splits && !validSplits(t, t.splits)) delete t.splits;
   return s;
+}
+
+/**
+ * 拆分：一筆交易可以拆成多個部分、各自歸類（例如一筆轉入同時包含收入與內部轉帳）。
+ * 拆分存在原交易的 splits 欄位，原交易本身不變，所以重新匯入同一份帳單時仍會被去重，拆分也會保留。
+ */
+export function validSplits(tx, splits) {
+  if (!Array.isArray(splits) || splits.length < 2) return false;
+  if (!splits.every((p) => p && Number.isFinite(p.amount) && p.amount !== 0 && typeof p.category === 'string')) return false;
+  if (!splits.every((p) => Math.sign(p.amount) === Math.sign(tx.amount))) return false;
+  return Math.abs(splits.reduce((sum, p) => sum + p.amount, 0) - tx.amount) < 0.005;
+}
+
+/** 計算用的最小單位：有拆分就是各個部分，否則是交易本身。 */
+export function partsOf(tx) {
+  return tx.splits ? tx.splits : [{ amount: tx.amount, category: tx.category }];
 }
 
 export function loadState(storage) {
@@ -98,16 +115,18 @@ export function summarizeMonth(state, month) {
   for (const t of state.transactions) {
     if (monthOf(t) !== month) continue;
     count++;
-    const type = types.get(t.category) ?? 'expense';
-    if (type === 'income') income += t.amount;
-    else if (type === 'excluded') excluded += t.amount;
-    else {
-      spend -= t.amount;
-      bySource[t.source] = (bySource[t.source] ?? 0) - t.amount;
-      const c = byCategory.get(t.category) ?? { id: t.category, total: 0, count: 0 };
-      c.total -= t.amount;
-      c.count++;
-      byCategory.set(t.category, c);
+    for (const part of partsOf(t)) {
+      const type = types.get(part.category) ?? 'expense';
+      if (type === 'income') income += part.amount;
+      else if (type === 'excluded') excluded += part.amount;
+      else {
+        spend -= part.amount;
+        bySource[t.source] = (bySource[t.source] ?? 0) - part.amount;
+        const c = byCategory.get(part.category) ?? { id: part.category, total: 0, count: 0 };
+        c.total -= part.amount;
+        c.count++;
+        byCategory.set(part.category, c);
+      }
     }
   }
   for (const k of Object.keys(bySource)) bySource[k] = round(bySource[k]);
@@ -128,7 +147,11 @@ export function toCSV(state, transactions) {
   const esc = (v) => `"${String(v).replace(/"/g, '""')}"`;
   const lines = [['日期', '來源', '說明', '分類', '金額'].map(esc).join(';')];
   for (const t of transactions) {
-    lines.push([t.date, t.source, t.desc, names.get(t.category) ?? t.category, t.amount.toFixed(2).replace('.', ',')].map(esc).join(';'));
+    // 拆分過的交易每個部分各輸出一列
+    for (const part of partsOf(t)) {
+      const desc = t.splits ? `${t.desc}（拆分）` : t.desc;
+      lines.push([t.date, t.source, desc, names.get(part.category) ?? part.category, part.amount.toFixed(2).replace('.', ',')].map(esc).join(';'));
+    }
   }
   return '﻿' + lines.join('\r\n');
 }

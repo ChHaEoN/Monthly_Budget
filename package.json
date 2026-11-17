@@ -4,6 +4,6 @@
   "type": "module",
   "scripts": {
     "start": "python3 -m http.server 8000",
-    "test": "node --test"
+    "test": "node --check js/app.js && node --check js/pdf.js && node --check js/folder.js && node --test"
   }
 }

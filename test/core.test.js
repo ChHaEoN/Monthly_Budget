@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { analyzeFile, buildTransactions, parseAmount, parseDate, detectDelimiter, decodeBytes } from '../js/parse.js';
 import { categorize, applyRules, suggestKeyword } from '../js/categorize.js';
-import { emptyState, mergeTransactions, summarizeMonth, shiftMonth, normalizeState } from '../js/store.js';
+import { emptyState, mergeTransactions, summarizeMonth, shiftMonth, normalizeState, validSplits, toCSV } from '../js/store.js';
 
 const sample = (name) => readFileSync(new URL(`./samples/${name}`, import.meta.url), 'utf8');
 const load = (name) => {
@@ -151,6 +151,44 @@ test('manual categories survive rule re-application', () => {
   assert.equal(applyRules(state.transactions, state.userRules), 1);
   assert.equal(tx.category, 'groceries');
   assert.equal(netflix.category, 'other');
+});
+
+test('split transactions: counted per part, survive re-import and rule changes', () => {
+  const state = emptyState();
+  const incoming = [{ date: '2026-10-07', amount: 2000, desc: 'PAYPAL · INSTANT TRANSFER', source: 'dkb' }];
+  mergeTransactions(state, incoming);
+  const tx = state.transactions[0];
+  assert.equal(summarizeMonth(state, '2026-10').income, 2000);
+
+  const splits = [{ amount: 1200, category: 'income' }, { amount: 800, category: 'transfer' }];
+  assert.equal(validSplits(tx, splits), true);
+  assert.equal(validSplits(tx, [{ amount: 1200, category: 'income' }, { amount: 700, category: 'transfer' }]), false);
+  assert.equal(validSplits(tx, [{ amount: 2500, category: 'income' }, { amount: -500, category: 'transfer' }]), false);
+  assert.equal(validSplits(tx, [{ amount: 2000, category: 'income' }]), false);
+  tx.splits = splits;
+
+  const s = summarizeMonth(state, '2026-10');
+  assert.equal(s.income, 1200);
+  assert.equal(s.excluded, 800);
+  assert.equal(s.spend, 0);
+
+  // 重新匯入同一筆：不新增、拆分保留
+  assert.deepEqual(mergeTransactions(state, incoming), { added: 0, duplicates: 1 });
+  assert.equal(state.transactions.length, 1);
+  assert.deepEqual(state.transactions[0].splits, splits);
+
+  // 規則變動不會動到拆分過的交易
+  applyRules(state.transactions, [{ keyword: 'instant transfer', category: 'other', source: '' }]);
+  assert.equal(tx.category, 'income');
+  assert.deepEqual(tx.splits, splits);
+
+  // 支出的拆分；匯出時每個部分一列；壞掉的拆分在載入時移除
+  mergeTransactions(state, [{ date: '2026-10-09', amount: -100, desc: 'Laden', source: 'amex' }]);
+  state.transactions[1].splits = [{ amount: -60, category: 'groceries' }, { amount: -40, category: 'household' }];
+  assert.deepEqual(summarizeMonth(state, '2026-10').byCategory.map((c) => [c.id, c.total]), [['groceries', 60], ['household', 40]]);
+  assert.equal(toCSV(state, state.transactions).split('\r\n').length, 5);
+  state.transactions[1].splits = [{ amount: -60, category: 'groceries' }, { amount: -10, category: 'household' }];
+  assert.equal(normalizeState(JSON.parse(JSON.stringify(state))).transactions[1].splits, undefined);
 });
 
 test('shiftMonth and normalizeState', () => {
