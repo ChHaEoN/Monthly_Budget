@@ -1,4 +1,5 @@
-import { SOURCES, analyzeFile, buildTransactions, decodeBytes, suggestFlip } from './parse.js';
+import { SOURCES, analyzeFile, analyzeRows, buildTransactions, decodeBytes, suggestFlip } from './parse.js';
+import { readXlsx } from './xlsx.js';
 import { DEFAULT_RULES, applyRules, suggestKeyword } from './categorize.js';
 import {
   allCategories, emptyState, listMonths, loadState, mergeTransactions, monthOf, normalizeState,
@@ -101,7 +102,7 @@ function render() {
   if (!state.transactions.length && ui.tab !== 'rules') {
     view.replaceChildren(...dataView(true));
   } else {
-    view.replaceChildren(...{ overview: overviewView, transactions: transactionsView, rules: rulesView, data: dataView }[ui.tab]());
+    view.replaceChildren(...{ overview: overviewView, transactions: transactionsView, rules: rulesView, data: dataView }[ui.tab]().filter(Boolean));
   }
   if (folderStatus && !folderStatus.granted) {
     view.prepend(h('p', { class: 'notice' }, `自動匯入資料夾「${folderStatus.name}」需要重新授權才能讀取。`,
@@ -236,7 +237,43 @@ function transactionsView() {
     summary,
   );
   update();
-  return [h('div', { class: 'card' }, filters, body)];
+  return [quickCategorizeCard(), h('div', { class: 'card' }, filters, body)];
+}
+
+/** 所有月份的未分類交易，依商家（建議關鍵字）分組，筆數多的在前。 */
+function uncategorizedGroups() {
+  const groups = new Map();
+  for (const t of state.transactions) {
+    if (t.category !== 'uncat' || t.manual) continue;
+    const keyword = suggestKeyword(t.desc);
+    if (!keyword) continue;
+    const g = groups.get(keyword) ?? { keyword, count: 0, total: 0, example: t.desc };
+    g.count++;
+    g.total += t.amount;
+    groups.set(keyword, g);
+  }
+  return [...groups.values()].sort((a, b) => b.count - a.count || a.total - b.total);
+}
+
+/** 快速分類：替一個商家選分類就會建立規則，同商家的交易（含之後匯入的）一次全部歸類。 */
+function quickCategorizeCard() {
+  const groups = uncategorizedGroups();
+  if (!groups.length) return null;
+  const total = groups.reduce((n, g) => n + g.count, 0);
+  const shown = ui.allGroups ? groups : groups.slice(0, 10);
+  return h('div', { class: 'card' },
+    h('h2', {}, `快速分類（全部月份共 ${total} 筆未分類，${groups.length} 個商家）`),
+    h('p', { class: 'hint', style: 'margin:0 0 10px' }, '替商家選一個分類就會建立規則：同商家的交易會一次歸類，之後匯入的也會自動套用。'),
+    h('div', { class: 'tablewrap' }, h('table', {},
+      h('thead', {}, h('tr', {}, h('th', {}, '關鍵字'), h('th', {}, '範例'), h('th', { class: 'amount' }, '筆數'), h('th', { class: 'amount' }, '金額'), h('th', {}, '分類'))),
+      h('tbody', {}, shown.map((g) => h('tr', {},
+        h('td', {}, g.keyword),
+        h('td', { class: 'desc dim', title: g.example }, g.example),
+        h('td', { class: 'amount num' }, String(g.count)),
+        h('td', { class: 'amount num' }, fmt(g.total)),
+        h('td', {}, categorySelect('', (v) => { if (v) addRule({ keyword: g.keyword, category: v, source: '' }); }, [['', '選擇分類…']]))))))),
+    groups.length > 10 && h('p', { class: 'hint' },
+      h('button', { class: 'link', onclick: () => { ui.allGroups = !ui.allGroups; render(); } }, ui.allGroups ? '只顯示前 10 個' : `顯示全部 ${groups.length} 個商家`)));
 }
 
 function setCategory(tx, category, refresh) {
@@ -335,10 +372,10 @@ function rulesView() {
 // ───────────────────────── 匯入與備份 ─────────────────────────
 
 function dataView(firstRun = false) {
-  const input = h('input', { type: 'file', multiple: true, accept: '.csv,.txt,.json,text/csv', hidden: true, onchange: (e) => { importFiles([...e.target.files]); e.target.value = ''; } });
+  const input = h('input', { type: 'file', multiple: true, accept: '.csv,.txt,.xlsx,.pdf,.json,text/csv,application/pdf', hidden: true, onchange: (e) => { importFiles([...e.target.files]); e.target.value = ''; } });
   const drop = h('label', { class: 'drop' },
-    h('strong', {}, '把帳單 CSV 拖曳到這裡，或點擊選擇檔案'),
-    '支援 DKB、VISA Amazon、AMEX 的 CSV 匯出，可一次選多個檔案。重複匯入不會重複計算。',
+    h('strong', {}, '把帳單檔案拖曳到這裡，或點擊選擇檔案'),
+    '支援 DKB、VISA Amazon、AMEX 的 CSV、Excel (.xlsx) 與 PDF 帳單，可一次選多個檔案。同一份檔案重複匯入不會重複計算。',
     input);
   drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
   drop.addEventListener('dragleave', () => drop.classList.remove('over'));
@@ -382,7 +419,7 @@ function dataView(firstRun = false) {
 }
 
 function folderCard() {
-  const intro = '指定一個存放帳單 CSV 的資料夾（例如「下載」裡的子資料夾）。之後每次開啟或切回這個頁面，都會自動匯入新檔案；能辨識的格式直接匯入，無法辨識的才會詢問。';
+  const intro = '指定一個存放帳單檔案（CSV、Excel、PDF）的資料夾（例如「下載」裡的子資料夾）。之後每次開啟或切回這個頁面，都會自動匯入新檔案；能辨識的 CSV／Excel 直接匯入；PDF 與無法辨識的檔案會先讓你確認。';
   if (!folder.supported) {
     return h('div', { class: 'card' }, h('h2', {}, '自動匯入資料夾'),
       h('p', { class: 'hint' }, '此瀏覽器不支援讀取本機資料夾，請改用桌面版 Chrome 或 Edge，或繼續用上方的拖曳匯入。'));
@@ -438,10 +475,10 @@ async function scanFolder({ interactive = false, force = false } = {}) {
     if (permission !== 'granted') return;
     const seen = new Set(state.importedFiles);
     const items = [];
-    for (const { path, file } of await folder.listCsvFiles(dir)) {
+    for (const { path, file } of await folder.listStatementFiles(dir)) {
       const key = folder.fingerprint(path, file);
       if (!force && seen.has(key)) continue;
-      items.push({ name: file.name, text: decodeBytes(await file.arrayBuffer()), key });
+      items.push({ name: file.name, file, key });
     }
     if (items.length) await importItems(items, true);
     else if (interactive) toast('資料夾裡沒有新的帳單檔案');
@@ -456,22 +493,33 @@ async function scanFolder({ interactive = false, force = false } = {}) {
 async function importFiles(files) {
   const items = [];
   for (const file of files) {
-    if (/\.pdf$/i.test(file.name)) {
-      toast(`${file.name}：目前只支援 CSV，請從網銀匯出 CSV 檔。`);
-      continue;
-    }
-    const text = decodeBytes(await file.arrayBuffer());
     if (/\.json$/i.test(file.name)) {
-      restoreBackup(text);
+      restoreBackup(decodeBytes(await file.arrayBuffer()));
       return;
     }
-    items.push({ name: file.name, text });
+    items.push({ name: file.name, file });
   }
   await importItems(items, false);
 }
 
+/** 依副檔名讀取帳單檔，回傳分析結果；review 表示即使自動匯入也要先讓使用者確認。 */
+async function readStatement(file) {
+  const buffer = await file.arrayBuffer();
+  if (/\.pdf$/i.test(file.name)) {
+    const { readPdf } = await import('./pdf.js');
+    const { rows, source, signed } = await readPdf(buffer, file.name);
+    const analysis = analyzeRows(rows, file.name, source);
+    // PDF 解析時已依借貸標記把支出轉成負數，不需要再反轉；只有完全沒標記時才用多數金額的方向去猜
+    if (signed) analysis.flip = false;
+    return { analysis, review: true };
+  }
+  if (/\.xlsx$/i.test(file.name)) return { analysis: analyzeRows(await readXlsx(buffer), file.name), review: false };
+  if (/\.xls$/i.test(file.name)) throw new Error('不支援舊版 .xls，請另存為 .xlsx 或 CSV');
+  return { analysis: analyzeFile(decodeBytes(buffer), file.name), review: false };
+}
+
 /**
- * 匯入一批檔案。auto：來源與欄位都能自動辨識時直接匯入、不跳預覽。
+ * 匯入一批檔案。auto：來源與欄位都能自動辨識時直接匯入、不跳預覽（PDF 一律先確認）。
  * 帶有 key 的檔案（來自自動匯入資料夾）處理後會記下來，下次掃描不再重讀。
  */
 async function importItems(items, auto) {
@@ -479,11 +527,24 @@ async function importItems(items, auto) {
   let duplicates = 0;
   let lastMonth = null;
   let remembered = false;
+  const problems = [];
   for (const item of items) {
-    const analysis = analyzeFile(item.text, item.name);
-    const txs = auto && analysis.detected && analysis.source
-      ? buildTransactions(analysis, { source: analysis.source, flip: analysis.flip }).txs
-      : await importDialog(analysis);
+    let txs = null;
+    try {
+      const { analysis, review } = await readStatement(item.file);
+      const count = buildTransactions(analysis, { source: analysis.source || 'dkb', flip: analysis.flip }).txs.length;
+      if (review && !count) {
+        // 自動掃描時，資料夾裡與帳單無關的 PDF 直接略過、不打擾
+        if (!auto) problems.push(`${item.name}：找不到交易明細`);
+      } else if (auto && !review && analysis.detected && analysis.source) {
+        txs = buildTransactions(analysis, { source: analysis.source, flip: analysis.flip }).txs;
+      } else {
+        txs = await importDialog(analysis);
+      }
+    } catch (err) {
+      console.error(err);
+      problems.push(`${item.name}：${err.message || '無法讀取'}`);
+    }
     if (item.key && !state.importedFiles.includes(item.key)) {
       state.importedFiles.push(item.key);
       remembered = true;
@@ -500,10 +561,11 @@ async function importItems(items, auto) {
     if (lastMonth) ui.month = lastMonth;
     ui.tab = 'overview';
   }
-  if (added || duplicates) {
-    render();
-    toast(`${auto ? `自動匯入 ${items.length} 個檔案：` : ''}新增 ${added} 筆交易${duplicates ? `，略過 ${duplicates} 筆重複` : ''}`);
-  }
+  if (added || duplicates) render();
+  const parts = [];
+  if (added || duplicates) parts.push(`${auto ? '自動匯入：' : ''}新增 ${added} 筆交易${duplicates ? `，略過 ${duplicates} 筆重複` : ''}`);
+  parts.push(...problems);
+  if (parts.length) toast(parts.join('；'));
 }
 
 function restoreBackup(text) {

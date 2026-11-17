@@ -79,6 +79,14 @@ test('categorize: default rules, source scoping, fallbacks', () => {
 test('suggestKeyword', () => {
   assert.equal(suggestKeyword('KLEINER LADEN BERLIN'), 'kleiner laden');
   assert.equal(suggestKeyword('REWE Markt GmbH · REWE SAGT DANKE 1234'), 'rewe markt');
+  assert.equal(suggestKeyword('PAYPAL *KLEINERLADEN 35314369001'), 'kleinerladen');
+  assert.equal(suggestKeyword('Kartenzahlung Blumen Schmidt Berlin'), 'blumen schmidt');
+  assert.equal(suggestKeyword('UBER *EATS HELP.UBER.COM'), 'uber eats');
+  // 建議的關鍵字一定要能比對回原本的交易
+  for (const desc of ['PAYPAL *KLEINERLADEN 35314369001', 'SUMUP *Cafe_Luna Berlin', 'Kartenzahlung Blumen Schmidt Berlin']) {
+    assert.equal(categorize({ desc, source: 'amex', amount: -1 }, [{ keyword: suggestKeyword(desc), category: 'other', source: '' }]), 'other', desc);
+  }
+  assert.equal(categorize({ desc: 'PAYPAL *NETFLIX', source: 'amex', amount: -1 }), 'subscriptions');
 });
 
 test('merge dedupes re-imports but keeps genuine same-day duplicates', () => {

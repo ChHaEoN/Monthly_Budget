@@ -41,7 +41,7 @@ export const DEFAULT_RULES = [
   ...group('telecom', '', ['telekom', 'vodafone', 'o2', 'telefonica', '1&1', 'congstar', 'aldi talk', 'fraenk', 'pyur']),
   ...group('groceries', '', ['rewe', 'edeka', 'lidl', 'aldi', 'penny', 'netto', 'kaufland', 'denns', 'bio company', 'alnatura', 'go asia', 'asia markt', 'flink', 'picnic', 'tegut', 'nahkauf']),
   ...group('household', '', ['dm-drogerie', 'dm drogerie', 'dm fil', 'rossmann', 'budni', 'müller drogerie']),
-  ...group('dining', '', ['restaurant', 'lieferando', 'wolt', 'uber eats', 'uber *eats', 'ubereats', 'mcdonald', 'burger king', 'starbucks', 'cafe', 'café', 'bäckerei', 'baeckerei', 'kfc', 'subway', 'pizza', 'sushi', 'ramen', 'imbiss', 'bistro', 'kantine', 'mensa']),
+  ...group('dining', '', ['restaurant', 'lieferando', 'wolt', 'uber eats', 'ubereats', 'mcdonald', 'burger king', 'starbucks', 'cafe', 'café', 'bäckerei', 'baeckerei', 'kfc', 'subway', 'pizza', 'sushi', 'ramen', 'imbiss', 'bistro', 'kantine', 'mensa']),
   ...group('subscriptions', '', ['netflix', 'spotify', 'disney', 'youtube', 'apple.com/bill', 'google', 'prime video', 'amazon prime', 'audible', 'openai', 'chatgpt', 'anthropic', 'claude.ai', 'github', 'icloud', 'dazn', 'kino', 'cinema', 'steam', 'playstation', 'nintendo', 'eventim', 'ticketmaster']),
   ...group('transport', '', ['db vertrieb', 'deutsche bahn', 'db fernverkehr', 'bvg', 'mvg', 'hvv', 'rmv', 'vvs', 'kvb', 'deutschlandticket', 'uber', 'bolt', 'free now', 'tier', 'lime', 'miles', 'share now', 'sixt', 'flixbus', 'aral', 'shell', 'esso', 'tankstelle', 'nextbike']),
   ...group('travel', '', ['lufthansa', 'ryanair', 'easyjet', 'eurowings', 'booking.com', 'airbnb', 'hotel', 'hostel', 'expedia', 'trip.com', 'eva air', 'china airlines']),
@@ -50,15 +50,30 @@ export const DEFAULT_RULES = [
   ...group('shopping', '', ['amazon', 'amzn', 'zalando', 'ikea', 'mediamarkt', 'media markt', 'saturn', 'h&m', 'zara', 'uniqlo', 'decathlon', 'ebay', 'otto', 'apple store', 'tk maxx', 'galeria', 'obi', 'bauhaus', 'hornbach', 'temu', 'aliexpress', 'etsy', 'kleinanzeigen', 'thalia', 'about you']),
   ...group('cash', '', ['bargeld', 'geldautomat', 'atm']),
   ...group('fees', '', ['entgelt', 'zinsen', 'gebühr', 'auslandseinsatz', 'kontoführung', 'jahresbeitrag', 'mitgliedsbeitrag']),
+  // 補充規則：優先序低於上面所有規則
+  ...group('housing', '', ['gasag', 'enbw', 'naturstrom', 'lichtblick', 'yello', 'octopus energy', 'vonovia', 'deutsche wohnen', 'gewobag', 'degewo', 'howoge', 'wohnungsbau', 'wohnungsgesellschaft', 'beitragsservice']),
+  ...group('telecom', '', ['drillisch', 'winsim', 'simyo', 'lebara', 'lycamobile', 'freenet', 'unitymedia']),
+  ...group('groceries', '', ['norma', 'globus', 'famila', 'marktkauf', 'combi', 'wochenmarkt', 'metro', 'supermarkt', 'lebensmittel', 'biomarkt', 'getränke', 'getraenke']),
+  ...group('household', '', ['drogerie']),
+  ...group('dining', '', ['backwerk', 'back-factory', 'kamps', 'dunkin', 'vapiano', 'dean & david', 'nordsee', 'döner', 'doener', 'kebab', 'kebap', 'coffee', 'kaffee', 'espresso', 'brauhaus', 'biergarten', 'grill', 'burger', 'thai', 'curry', 'five guys', 'peter pane', 'hans im glück', "l'osteria", 'trattoria', 'pizzeria', 'gaststätte', 'gasthaus', 'eiscafe', 'eiscafé', 'bakery', 'bäcker', 'baecker', 'konditorei', 'bubble tea', 'noodle', 'dumpling', 'wok', 'taverna', 'tapas', 'steakhouse', 'lieferservice']),
+  ...group('subscriptions', '', ['adobe', 'microsoft', 'dropbox', 'notion', 'paramount', 'crunchyroll', 'twitch', 'patreon', 'kindle', 'nytimes', 'spiegel', 'linkedin', 'duolingo', 'cinemaxx', 'cinestar', 'uci kino', 'museum', 'theater', 'konzert', 'xbox']),
+  ...group('transport', '', ['db bahn', 'bahn.de', 'vrr', 'vbb', 'mvv', 'rheinbahn', 'deutschland-ticket', 'voi', 'parken', 'parkhaus', 'apcoa', 'easypark', 'adac', 'taxi', 'freenow', 'flixtrain', 'tanken', 'star tankstelle', 'total energies', 'totalenergies', 'fahrrad', 'swapfiets']),
+  ...group('travel', '', ['klm', 'air france', 'turkish airlines', 'wizz', 'condor', 'tuifly', 'hostelworld', 'hrs', 'agoda', 'marriott', 'hilton', 'ibis', 'motel one', 'b&b hotel', 'flughafen', 'airport']),
+  ...group('insurance', '', ['krankenversicherung', 'debeka', 'signal iduna', 'hansemerkur', 'cosmosdirekt', 'wgv', 'lemonade', 'rechtsschutz']),
+  ...group('health', '', ['physio', 'klinik', 'krankenhaus', 'zahn', 'sanitätshaus', 'mister spex', 'apollo', 'hausarzt', 'orthop', 'dermat', 'labor', 'friseur', 'frisör', 'barber']),
+  ...group('shopping', '', ['tedi', 'action', 'woolworth', 'kik', 'primark', 'c&a', 'douglas', 'rituals', 'butlers', 'muji', 'nike', 'adidas', 'apple', 'conrad', 'notebooksbilliger', 'alternate', 'cyberport', 'shein', 'vinted', 'zooplus', 'fressnapf', 'buchhandlung', 'hugendubel', 'dussmann', 'peek & cloppenburg', 'snipes', 'foot locker', 'jysk', 'xxxlutz', 'höffner', 'toom', 'globetrotter']),
 ];
 
 const regexCache = new Map();
 
 /** 關鍵字必須出現在「單字開頭」，避免 "tier" 命中 "Metier" 之類的誤判。 */
+/** 比對前先正規化：小寫，並把商家名稱裡常見的 * 與 _（如 "UBER *EATS"、"PAYPAL *SHOP"）當成空白。 */
+const normalize = (s) => s.toLowerCase().replace(/[*_]+/g, ' ').replace(/\s+/g, ' ').trim();
+
 function keywordRegex(keyword) {
   let re = regexCache.get(keyword);
   if (!re) {
-    const escaped = keyword.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escaped = normalize(keyword).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     re = new RegExp(`(^|[^a-z0-9äöüß])${escaped}`);
     regexCache.set(keyword, re);
   }
@@ -72,7 +87,7 @@ function sourceMatches(ruleSource, txSource) {
 }
 
 export function matchRule(tx, rules) {
-  const desc = tx.desc.toLowerCase();
+  const desc = normalize(tx.desc);
   return rules.find((r) => r.keyword && sourceMatches(r.source, tx.source) && keywordRegex(r.keyword).test(desc));
 }
 
@@ -97,12 +112,12 @@ export function applyRules(transactions, userRules = []) {
   return changed;
 }
 
-/** 從交易說明猜一個適合當規則的關鍵字（商家名稱的前幾個字）。 */
+// 交易說明開頭常見、但不代表商家的字（交易類型、支付平台）
+const NOISE = /^(kartenzahlung|lastschrift|basislastschrift|folgelastschrift|überweisung|ueberweisung|echtzeitüberweisung|dauerauftrag|gutschrift|sepa|visa|debitkartenumsatz|onlinezahlung|pp|paypal|sumup|sq|zettle|izettle|ec|girocard|google|pay|apple)$/;
+
+/** 從交易說明猜一個適合當規則的關鍵字（商家名稱的前兩個字）。 */
 export function suggestKeyword(desc) {
-  const head = desc.split(' · ')[0].toLowerCase();
-  const words = head
-    .replace(/[*#]\S*/g, ' ')
-    .split(/\s+/)
-    .filter((w) => w && !/^\d+$/.test(w));
-  return words.slice(0, 2).join(' ');
+  const all = normalize(desc.split(' · ')[0]).split(' ').filter((w) => w && !/\d{3,}/.test(w) && !/^\d+$/.test(w));
+  const words = all.filter((w) => !NOISE.test(w.replace(/[.,:]/g, '')));
+  return (words.length ? words : all).slice(0, 2).join(' ');
 }
