@@ -345,9 +345,10 @@ function rulesView() {
             render();
             toast(`已重新套用規則，${changed} 筆交易變動`);
           } }, '重新套用規則'),
+          state.userRules.length ? h('button', { class: 'btn', onclick: () => download('my-rules.json', JSON.stringify({ rules: state.userRules }, null, 1), 'application/json') }, '匯出我的規則') : null,
           h('button', { class: 'btn primary', onclick: () => ruleDialog({ keyword: '', category: 'other', source: '' }) }, '新增規則'))),
       state.userRules.length ? ruleTable(state.userRules, true) : h('div', { class: 'empty' }, '尚未建立自訂規則。在交易明細更改分類後，可以直接把它存成規則。'),
-      h('p', { class: 'hint' }, '我的規則優先於內建規則；越上面的規則越優先。手動改過分類的交易不會被規則覆蓋。')),
+      h('p', { class: 'hint' }, '我的規則優先於內建規則；越上面的規則越優先。手動改過分類的交易不會被規則覆蓋。規則只存在這個瀏覽器裡；把規則檔 (.json) 拖到「匯入與備份」的匯入區即可匯入。')),
     h('div', { class: 'card' },
       h('h2', {}, '自訂分類'),
       custom.length ? h('div', { class: 'row', style: 'margin-bottom:12px' }, custom.map((c) => h('span', { class: 'badge' }, c.name))) : null,
@@ -569,9 +570,30 @@ async function importItems(items, auto) {
   if (parts.length) toast(parts.join('；'));
 }
 
+/** 匯入規則檔（{ rules: [...] }）：併入「我的規則」，不影響交易資料。 */
+function importRules(rules) {
+  const valid = new Set(allCategories(state).map((c) => c.id));
+  const existing = new Set(state.userRules.map((r) => `${r.keyword}|${r.source ?? ''}`));
+  let added = 0;
+  for (const r of rules) {
+    const keyword = typeof r?.keyword === 'string' ? r.keyword.trim().toLowerCase() : '';
+    const source = typeof r?.source === 'string' ? r.source : '';
+    if (!keyword || !valid.has(r.category) || existing.has(`${keyword}|${source}`)) continue;
+    state.userRules.push({ keyword, category: r.category, source });
+    existing.add(`${keyword}|${source}`);
+    added++;
+  }
+  const changed = applyRules(state.transactions, state.userRules);
+  persist();
+  render();
+  toast(`已匯入 ${added} 條規則，${changed} 筆交易重新分類`);
+}
+
 function restoreBackup(text) {
   try {
-    const next = normalizeState(JSON.parse(text));
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed?.rules) && !('transactions' in parsed)) return importRules(parsed.rules);
+    const next = normalizeState(parsed);
     if (state.transactions.length && !confirm(`還原備份會取代目前的 ${state.transactions.length} 筆交易，確定嗎？`)) return;
     state = next;
     applyRules(state.transactions, state.userRules);
