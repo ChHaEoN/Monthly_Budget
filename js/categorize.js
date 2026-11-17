@@ -57,7 +57,7 @@ export const DEFAULT_RULES = [
   ...group('health', '', ['apotheke', 'arzt', 'praxis', 'zahnarzt', 'urban sports', 'fitness', 'mcfit', 'john reed', 'fitx', 'docmorris', 'optiker', 'fielmann']),
   ...group('shopping', '', ['amazon', 'amzn', 'zalando', 'ikea', 'mediamarkt', 'media markt', 'saturn', 'h&m', 'zara', 'uniqlo', 'decathlon', 'ebay', 'otto', 'apple store', 'tk maxx', 'galeria', 'obi', 'bauhaus', 'hornbach', 'temu', 'aliexpress', 'etsy', 'kleinanzeigen', 'thalia', 'about you']),
   ...group('cash', '', ['bargeld', 'geldautomat', 'atm']),
-  ...group('fees', '', ['entgelt', 'zinsen', 'gebühr', 'auslandseinsatz', 'kontoführung', 'jahresbeitrag', 'mitgliedsbeitrag']),
+  ...group('fees', '', ['entgelt', 'zinsen', 'sollzinsen', 'überziehungszinsen', 'gebühr', 'auslandseinsatz', 'kontoführung', 'jahresbeitrag', 'mitgliedsbeitrag']),
   // 補充規則：優先序低於上面所有規則
   ...group('housing', '', ['gasag', 'enbw', 'naturstrom', 'lichtblick', 'yello', 'octopus energy', 'vonovia', 'deutsche wohnen', 'gewobag', 'degewo', 'howoge', 'wohnungsbau', 'wohnungsgesellschaft', 'beitragsservice']),
   ...group('telecom', '', ['drillisch', 'winsim', 'simyo', 'lebara', 'lycamobile', 'freenet', 'unitymedia']),
