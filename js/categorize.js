@@ -33,7 +33,7 @@ export const BASE_CATEGORIES = [
 const group = (category, source, keywords) => keywords.map((keyword) => ({ keyword, category, source }));
 
 /** 內建規則有更動時遞增：已儲存的交易會在下次開啟時自動重新套用規則（手動改過的分類不受影響）。 */
-export const RULES_VERSION = 3;
+export const RULES_VERSION = 4;
 
 // 順序即優先序：先比對到的規則勝出。source: '' 全部 | 'dkb' | 'amazon' | 'amex' | 'cards'
 export const DEFAULT_RULES = [
@@ -69,17 +69,17 @@ export const DEFAULT_RULES = [
   ...group('travel', '', ['klm', 'air france', 'turkish airlines', 'wizz', 'condor', 'tuifly', 'hostelworld', 'hrs', 'agoda', 'marriott', 'hilton', 'ibis', 'motel one', 'b&b hotel']),
   ...group('insurance', '', ['krankenversicherung', 'debeka', 'signal iduna', 'hansemerkur', 'cosmosdirekt', 'wgv', 'lemonade', 'rechtsschutz']),
   ...group('childcare', '', ['kita', 'kitas', 'kindergarten', 'kinderbetreuung', 'tagespflege', 'betreuungskosten', 'essensgeld', 'kinderwelt']),
-  ...group('loan', '', ['ratenzahlung', 'darlehen', 'targobank', 'rate per']),
+  ...group('loan', '', ['ratenzahlung', 'darlehen', 'rate per']),
   ...group('cash', 'dkb', ['sparkasse', 'stadtsparkasse', 'volksbank', 'raiffeisenbank']),
   ...group('fees', '', ['monatsgebühr', 'monatsgebuehr', 'teilnahmegebuehr', 'teilnahmegebühr']),
-  ...group('insurance', '', ['barmenia', 'krankenvers']),
-  ...group('housing', '', ['eprimo', 'hausgeld']),
-  ...group('groceries', '', ['edk', 'albert heijn', 'jumbo', 'carrefour', 'migross', 'hanaro', 'dae yang', 'dae-yang', 'amazing oriental', 'andronaco', 'feinkost', 'feinekost', 'superbiomarkt', 'supermaket', 'supermarket', 'markthalle', 'asiamarkt', 'toogoodtogo', 'tgtg', 'bauerngarten']),
-  ...group('dining', '', ['gastronomie', 'gastro', 'caffetteria', 'caffe', 'gelateria', 'gelater', 'popeyes', 'losteria', 'le crobag', 'pret a manger', 'backhaus', 'landbaeckerei', 'landbäckerei', 'zeit für brot', 'patisserie', 'cookies', 'churros', 'steakhaus', 'dim sum', 'tonkatsu', 'katsu', 'shawarma', 'doner', 'cuisine', 'meetfresh', 'meet fresh', 'irish pub', 'hofbraeu', 'hofbräu', 'wegrestaurant', 'autogrill', 'snack', 'snackautomat', 'catering', 'food', 'focacceria', 'ravioli', 'pasta', 'kiosk', 'osteria', 'ristorante', 'brasserie', 'bakery', 'cake', 'cakes']),
-  ...group('subscriptions', '', ['itunes', 'miniatur wunderland', 'miniaturwunderland', 'pathe', 'freizeitbad', 'erlebnisbad', 'schwimmbad', 'amusement', 'zoo', 'tierpark']),
-  ...group('transport', '', ['deutschebahn', 'dbvertrieb', 'verkehrsverbund', 'transports metropolitans', 'high speed rail', 'trenord', 'q-park', 'parking', 'parkeren', 'parkgebuehr', 'parkgebühr', 'a.t.u', 'tankst', 'bft', 'terravision']),
-  ...group('travel', '', ['airlines', 'lastminute', 'lastminutecom', 'moxy', 'stow your bags', 'tourismus']),
-  ...group('shopping', '', ['smyths', 'baby-walz', 'ernsting', 'segmüller', 'segmueller', 'hema', 'euroshop', 'bijou brigitte', 'joybuy', 'klarna', 'refurbed', 'bialetti', 'blume', 'blumen', 'gartencenter', 'baufuchs', 'heimwerk', 'fairkaufhaus', 'outlet', 'oxfam', 'lindt', 'deutsche post', 'fedex', 'dhl']),
+  ...group('insurance', '', ['krankenvers']),
+  ...group('housing', '', ['hausgeld']),
+  ...group('groceries', '', ['edk', 'feinkost', 'feinekost', 'supermarket', 'markthalle', 'asiamarkt', 'toogoodtogo', 'tgtg']),
+  ...group('dining', '', ['gastronomie', 'gastro', 'caffetteria', 'caffe', 'gelateria', 'gelater', 'backhaus', 'landbaeckerei', 'landbäckerei', 'patisserie', 'cookies', 'churros', 'steakhaus', 'dim sum', 'tonkatsu', 'katsu', 'shawarma', 'doner', 'cuisine', 'irish pub', 'hofbraeu', 'hofbräu', 'wegrestaurant', 'snack', 'snackautomat', 'catering', 'food', 'focacceria', 'ravioli', 'pasta', 'kiosk', 'osteria', 'ristorante', 'brasserie', 'bakery', 'cake', 'cakes']),
+  ...group('subscriptions', '', ['itunes', 'freizeitbad', 'erlebnisbad', 'schwimmbad', 'amusement', 'zoo', 'tierpark']),
+  ...group('transport', '', ['deutschebahn', 'dbvertrieb', 'verkehrsverbund', 'parking', 'parkeren', 'parkgebuehr', 'parkgebühr', 'tankst']),
+  ...group('travel', '', ['airlines', 'lastminute', 'lastminutecom', 'tourismus']),
+  ...group('shopping', '', ['klarna', 'blume', 'blumen', 'gartencenter', 'outlet', 'deutsche post', 'fedex', 'dhl']),
   ...group('health', '', ['physio', 'klinik', 'krankenhaus', 'zahn', 'sanitätshaus', 'mister spex', 'apollo', 'hausarzt', 'orthop', 'dermat', 'labor', 'friseur', 'frisör', 'barber']),
   ...group('shopping', '', ['tedi', 'action', 'woolworth', 'kik', 'primark', 'c&a', 'douglas', 'rituals', 'butlers', 'muji', 'nike', 'adidas', 'apple', 'conrad', 'notebooksbilliger', 'alternate', 'cyberport', 'shein', 'vinted', 'zooplus', 'fressnapf', 'buchhandlung', 'hugendubel', 'dussmann', 'peek & cloppenburg', 'snipes', 'foot locker', 'jysk', 'xxxlutz', 'höffner', 'toom', 'globetrotter']),
 ];
@@ -89,7 +89,7 @@ const regexCache = new Map();
 /** 關鍵字必須出現在「單字開頭」，避免 "tier" 命中 "Metier" 之類的誤判。 */
 /**
  * 比對前先正規化：小寫，並把商家名稱裡當作分隔的符號換成空白。
- * 例如 "UBER *EATS"、"PAYPAL *SHOP"，以及 DKB Visa 卡的 "Dae.Yang.Lebensmittel/Dusseldorf"。
+ * 例如 "UBER *EATS"、"PAYPAL *SHOP"，以及 DKB Visa 卡的 "Asia.Markt.Lebensmittel/Musterstadt"。
  * 關鍵字也經過同樣處理，所以 "booking.com" 仍能比對到 "BOOKING.COM"。
  */
 const normalize = (s) => s.toLowerCase().replace(/[*_./]+/g, ' ').replace(/\s+/g, ' ').trim();
