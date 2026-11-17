@@ -4,7 +4,7 @@ import { BASE_CATEGORIES, categorize } from './categorize.js';
 export const STORAGE_KEY = 'monthly-budget-v1';
 
 export function emptyState() {
-  return { version: 1, transactions: [], userRules: [], customCategories: [] };
+  return { version: 1, transactions: [], userRules: [], customCategories: [], importedFiles: [] };
 }
 
 export function normalizeState(raw) {
@@ -12,6 +12,7 @@ export function normalizeState(raw) {
   if (!Array.isArray(s.transactions) || !Array.isArray(s.userRules) || !Array.isArray(s.customCategories)) {
     throw new Error('備份檔格式不正確');
   }
+  if (!Array.isArray(s.importedFiles)) s.importedFiles = [];
   s.transactions = s.transactions.filter(
     (t) => t && /^\d{4}-\d{2}-\d{2}$/.test(t.date) && Number.isFinite(t.amount) && typeof t.desc === 'string',
   );

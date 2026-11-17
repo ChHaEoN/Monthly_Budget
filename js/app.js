@@ -4,9 +4,12 @@ import {
   allCategories, emptyState, listMonths, loadState, mergeTransactions, monthOf, normalizeState,
   saveState, shiftMonth, summarizeMonth, toCSV,
 } from './store.js';
+import * as folder from './folder.js';
 
 let state = loadState(localStorage);
 const ui = { tab: 'overview', month: null, filter: { q: '', source: '', category: '' } };
+/** 自動匯入資料夾的狀態：null = 未設定；granted = 目前是否有讀取權限 */
+let folderStatus = null;
 
 const $ = (id) => document.getElementById(id);
 const eur = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
@@ -99,6 +102,10 @@ function render() {
     view.replaceChildren(...dataView(true));
   } else {
     view.replaceChildren(...{ overview: overviewView, transactions: transactionsView, rules: rulesView, data: dataView }[ui.tab]());
+  }
+  if (folderStatus && !folderStatus.granted) {
+    view.prepend(h('p', { class: 'notice' }, `自動匯入資料夾「${folderStatus.name}」需要重新授權才能讀取。`,
+      h('button', { class: 'link', onclick: () => scanFolder({ interactive: true }) }, '重新授權並掃描')));
   }
 }
 
@@ -343,10 +350,11 @@ function dataView(firstRun = false) {
 
   if (firstRun) {
     return [h('div', { class: 'card' }, h('h2', {}, '開始使用'), drop, privacy,
-      h('p', { class: 'hint' }, '已有備份？直接把備份的 .json 檔拖進來即可還原。'))];
+      h('p', { class: 'hint' }, '已有備份？直接把備份的 .json 檔拖進來即可還原。')), folderCard()];
   }
   return [
     h('div', { class: 'card' }, h('h2', {}, '匯入帳單'), drop, h('p', { class: 'hint' }, `目前共有：${counts}`)),
+    folderCard(),
     h('div', { class: 'card' },
       h('h2', {}, '備份與匯出'),
       h('div', { class: 'row' },
@@ -373,10 +381,80 @@ function dataView(firstRun = false) {
   ];
 }
 
+function folderCard() {
+  const intro = '指定一個存放帳單 CSV 的資料夾（例如「下載」裡的子資料夾）。之後每次開啟或切回這個頁面，都會自動匯入新檔案；能辨識的格式直接匯入，無法辨識的才會詢問。';
+  if (!folder.supported) {
+    return h('div', { class: 'card' }, h('h2', {}, '自動匯入資料夾'),
+      h('p', { class: 'hint' }, '此瀏覽器不支援讀取本機資料夾，請改用桌面版 Chrome 或 Edge，或繼續用上方的拖曳匯入。'));
+  }
+  const pick = async () => {
+    let dir;
+    try {
+      dir = await showDirectoryPicker({ id: 'statements', mode: 'read' });
+    } catch {
+      return; // 使用者取消
+    }
+    await folder.saveHandle(dir);
+    folderStatus = { name: dir.name, granted: true };
+    render();
+    scanFolder({ interactive: true });
+  };
+  if (!folderStatus) {
+    return h('div', { class: 'card' }, h('h2', {}, '自動匯入資料夾'),
+      h('div', { class: 'row' }, h('button', { class: 'btn primary', onclick: pick }, '選擇資料夾')),
+      h('p', { class: 'hint' }, intro));
+  }
+  return h('div', { class: 'card' }, h('h2', {}, '自動匯入資料夾'),
+    h('p', {}, `目前資料夾：「${folderStatus.name}」`, folderStatus.granted ? '' : '（需要重新授權）'),
+    h('div', { class: 'row' },
+      h('button', { class: 'btn primary', onclick: () => scanFolder({ interactive: true }) }, '立即掃描'),
+      h('button', { class: 'btn', onclick: () => scanFolder({ interactive: true, force: true }) }, '重新掃描全部檔案'),
+      h('button', { class: 'btn', onclick: pick }, '更換資料夾'),
+      h('button', { class: 'btn danger', onclick: async () => {
+        await folder.clearHandle();
+        folderStatus = null;
+        render();
+      } }, '停止自動匯入')),
+    h('p', { class: 'hint' }, `${intro}網頁只會讀取、不會修改或刪除資料夾裡的檔案。`));
+}
+
+let scanning = false;
+
+/**
+ * 掃描自動匯入資料夾。interactive：由使用者點擊觸發，可以跳出授權視窗並回報「沒有新檔案」。
+ * force：忽略已處理紀錄重新讀取全部檔案（重複的交易仍會被去重略過）。
+ */
+async function scanFolder({ interactive = false, force = false } = {}) {
+  if (scanning || !folder.supported || $('dialog').open) return;
+  scanning = true;
+  try {
+    const dir = await folder.loadHandle();
+    if (!dir) return;
+    let permission = await dir.queryPermission({ mode: 'read' });
+    if (permission !== 'granted' && interactive) permission = await dir.requestPermission({ mode: 'read' });
+    const changed = !folderStatus || folderStatus.granted !== (permission === 'granted');
+    folderStatus = { name: dir.name, granted: permission === 'granted' };
+    if (changed) render();
+    if (permission !== 'granted') return;
+    const seen = new Set(state.importedFiles);
+    const items = [];
+    for (const { path, file } of await folder.listCsvFiles(dir)) {
+      const key = folder.fingerprint(path, file);
+      if (!force && seen.has(key)) continue;
+      items.push({ name: file.name, text: decodeBytes(await file.arrayBuffer()), key });
+    }
+    if (items.length) await importItems(items, true);
+    else if (interactive) toast('資料夾裡沒有新的帳單檔案');
+  } catch (err) {
+    console.error(err);
+    if (interactive) toast('無法讀取資料夾，請確認資料夾仍然存在，或重新選擇。');
+  } finally {
+    scanning = false;
+  }
+}
+
 async function importFiles(files) {
-  let added = 0;
-  let duplicates = 0;
-  let lastMonth = null;
+  const items = [];
   for (const file of files) {
     if (/\.pdf$/i.test(file.name)) {
       toast(`${file.name}：目前只支援 CSV，請從網銀匯出 CSV 檔。`);
@@ -387,20 +465,44 @@ async function importFiles(files) {
       restoreBackup(text);
       return;
     }
-    const analysis = analyzeFile(text, file.name);
-    const txs = await importDialog(analysis);
+    items.push({ name: file.name, text });
+  }
+  await importItems(items, false);
+}
+
+/**
+ * 匯入一批檔案。auto：來源與欄位都能自動辨識時直接匯入、不跳預覽。
+ * 帶有 key 的檔案（來自自動匯入資料夾）處理後會記下來，下次掃描不再重讀。
+ */
+async function importItems(items, auto) {
+  let added = 0;
+  let duplicates = 0;
+  let lastMonth = null;
+  let remembered = false;
+  for (const item of items) {
+    const analysis = analyzeFile(item.text, item.name);
+    const txs = auto && analysis.detected && analysis.source
+      ? buildTransactions(analysis, { source: analysis.source, flip: analysis.flip }).txs
+      : await importDialog(analysis);
+    if (item.key && !state.importedFiles.includes(item.key)) {
+      state.importedFiles.push(item.key);
+      remembered = true;
+    }
     if (!txs) continue;
     const r = mergeTransactions(state, txs);
     added += r.added;
     duplicates += r.duplicates;
-    if (txs.length) lastMonth = txs.map((t) => t.date).sort().at(-1).slice(0, 7);
+    if (r.added) lastMonth = txs.map((t) => t.date).sort().at(-1).slice(0, 7);
+  }
+  if (remembered) state.importedFiles = state.importedFiles.slice(-3000);
+  if (added || duplicates || remembered) persist();
+  if (added) {
+    if (lastMonth) ui.month = lastMonth;
+    ui.tab = 'overview';
   }
   if (added || duplicates) {
-    persist();
-    if (added && lastMonth) ui.month = lastMonth;
-    if (added) ui.tab = 'overview';
     render();
-    toast(`新增 ${added} 筆交易${duplicates ? `，略過 ${duplicates} 筆重複` : ''}`);
+    toast(`${auto ? `自動匯入 ${items.length} 個檔案：` : ''}新增 ${added} 筆交易${duplicates ? `，略過 ${duplicates} 筆重複` : ''}`);
   }
 }
 
@@ -479,3 +581,6 @@ function importDialog(analysis) {
 }
 
 render();
+scanFolder();
+// 下載完帳單切回這個分頁時，自動檢查資料夾裡的新檔案
+document.addEventListener('visibilitychange', () => { if (!document.hidden) scanFolder(); });
