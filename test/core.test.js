@@ -91,6 +91,9 @@ test('categorize: DKB Visa debit format (Merchant.Name/City) and real-world patt
   assert.equal(c('eprimo GmbH Flughafenstrase 20 · eprimo sagt danke'), 'housing');
   assert.equal(c('Stadtkasse Musterstadt · 123/Kita freie Traeger Beitrag'), 'childcare');
   assert.equal(c(`PayPal - Ratenzahlung${visa}`), 'loan');
+  assert.equal(c('Max Mustermann · Rechnung Darl.-Leistung 6000000000 Tilgung 700,00 Zinsen 1.500,00'), 'mortgage');
+  assert.equal(c('Max Mustermann · Rechnung Darl.-Leistung 6000000001 Zinsen 300,00'), 'mortgage');
+  assert.equal(c('DKB AG · Abrechnung 30.09.2026 Sollzinsen 1,23'), 'fees');
   assert.equal(c(`Sparkasse Musterstadt${visa}`), 'cash');
   assert.equal(suggestKeyword(`LS.Kugel.UG/Musterstadt${visa}`), 'kugel ug');
   assert.equal(suggestKeyword(`SumUp...Kugel.UG..haft/Musterstadt${visa}`), 'kugel ug');

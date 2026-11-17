@@ -8,6 +8,7 @@
  */
 export const BASE_CATEGORIES = [
   { id: 'housing', name: '住房水電', type: 'expense' },
+  { id: 'mortgage', name: '房貸', type: 'expense' },
   { id: 'groceries', name: '超市食品', type: 'expense' },
   { id: 'dining', name: '餐飲外食', type: 'expense' },
   { id: 'household', name: '日用品', type: 'expense' },
@@ -32,7 +33,7 @@ export const BASE_CATEGORIES = [
 const group = (category, source, keywords) => keywords.map((keyword) => ({ keyword, category, source }));
 
 /** 內建規則有更動時遞增：已儲存的交易會在下次開啟時自動重新套用規則（手動改過的分類不受影響）。 */
-export const RULES_VERSION = 2;
+export const RULES_VERSION = 3;
 
 // 順序即優先序：先比對到的規則勝出。source: '' 全部 | 'dkb' | 'amazon' | 'amex' | 'cards'
 export const DEFAULT_RULES = [
@@ -41,6 +42,8 @@ export const DEFAULT_RULES = [
   // 信用卡端收到的繳款
   ...group('transfer', 'cards', ['zahlung erhalten', 'zahlung/überweisung erhalten', 'besten dank', 'lastschrift', 'payment received', 'ihre zahlung', 'einzug']),
   ...group('saving', 'dkb', ['trade republic', 'scalable', 'sparplan', 'depot', 'tagesgeld']),
+  // 房貸扣款（本金＋利息）；要排在「手續費與利息」的 zinsen 之前
+  ...group('mortgage', '', ['darl.-leistung', 'darlehensleistung', 'darlehensrate', 'baufinanzierung', 'immobiliendarlehen', 'tilgung', 'annuität', 'annuitaet', 'hypothek']),
   ...group('income', 'dkb', ['gehalt', 'lohn', 'bezüge', 'salary']),
   ...group('housing', '', ['miete', 'hausverwaltung', 'stadtwerke', 'vattenfall', 'e.on', 'eon energie', 'rundfunk', 'nebenkosten', 'strom', 'ostrom', 'tibber']),
   ...group('telecom', '', ['telekom', 'vodafone', 'o2', 'telefonica', '1&1', 'congstar', 'aldi talk', 'fraenk', 'pyur']),
@@ -54,7 +57,7 @@ export const DEFAULT_RULES = [
   ...group('health', '', ['apotheke', 'arzt', 'praxis', 'zahnarzt', 'urban sports', 'fitness', 'mcfit', 'john reed', 'fitx', 'docmorris', 'optiker', 'fielmann']),
   ...group('shopping', '', ['amazon', 'amzn', 'zalando', 'ikea', 'mediamarkt', 'media markt', 'saturn', 'h&m', 'zara', 'uniqlo', 'decathlon', 'ebay', 'otto', 'apple store', 'tk maxx', 'galeria', 'obi', 'bauhaus', 'hornbach', 'temu', 'aliexpress', 'etsy', 'kleinanzeigen', 'thalia', 'about you']),
   ...group('cash', '', ['bargeld', 'geldautomat', 'atm']),
-  ...group('fees', '', ['entgelt', 'zinsen', 'gebühr', 'auslandseinsatz', 'kontoführung', 'jahresbeitrag', 'mitgliedsbeitrag']),
+  ...group('fees', '', ['entgelt', 'zinsen', 'sollzinsen', 'überziehungszinsen', 'gebühr', 'auslandseinsatz', 'kontoführung', 'jahresbeitrag', 'mitgliedsbeitrag']),
   // 補充規則：優先序低於上面所有規則
   ...group('housing', '', ['gasag', 'enbw', 'naturstrom', 'lichtblick', 'yello', 'octopus energy', 'vonovia', 'deutsche wohnen', 'gewobag', 'degewo', 'howoge', 'wohnungsbau', 'wohnungsgesellschaft', 'beitragsservice']),
   ...group('telecom', '', ['drillisch', 'winsim', 'simyo', 'lebara', 'lycamobile', 'freenet', 'unitymedia']),
