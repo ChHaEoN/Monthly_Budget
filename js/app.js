@@ -1,6 +1,6 @@
 import { SOURCES, analyzeFile, analyzeRows, buildTransactions, decodeBytes, suggestFlip } from './parse.js';
 import { readXlsx } from './xlsx.js';
-import { DEFAULT_RULES, applyRules, suggestKeyword } from './categorize.js';
+import { DEFAULT_RULES, RULES_VERSION, applyRules, suggestKeyword } from './categorize.js';
 import {
   allCategories, emptyState, listMonths, loadState, mergeTransactions, monthOf, normalizeState,
   saveState, shiftMonth, summarizeMonth, toCSV,
@@ -412,6 +412,7 @@ function dataView(firstRun = false) {
         h('button', { class: 'btn danger', onclick: () => {
           if (!confirm('確定刪除所有交易、規則與自訂分類？此動作無法復原。')) return;
           state = emptyState();
+          state.rulesVersion = RULES_VERSION;
           persist();
           render();
         } }, '刪除全部資料'))),
@@ -573,6 +574,8 @@ function restoreBackup(text) {
     const next = normalizeState(JSON.parse(text));
     if (state.transactions.length && !confirm(`還原備份會取代目前的 ${state.transactions.length} 筆交易，確定嗎？`)) return;
     state = next;
+    applyRules(state.transactions, state.userRules);
+    state.rulesVersion = RULES_VERSION;
     ui.month = null;
     persist();
     render();
@@ -640,6 +643,14 @@ function importDialog(analysis) {
     refresh();
     dlg.showModal();
   });
+}
+
+// 內建規則更新後，把已儲存的交易重新分類一次
+if (state.rulesVersion !== RULES_VERSION) {
+  const changed = state.transactions.length ? applyRules(state.transactions, state.userRules) : 0;
+  state.rulesVersion = RULES_VERSION;
+  persist();
+  if (changed) setTimeout(() => toast(`分類規則已更新，${changed} 筆交易重新分類`), 300);
 }
 
 render();

@@ -76,6 +76,27 @@ test('categorize: default rules, source scoping, fallbacks', () => {
   assert.equal(categorize({ desc: 'KLEINER LADEN', source: 'amex', amount: -1 }, [{ keyword: 'kleiner laden', category: 'groceries', source: '' }]), 'groceries');
 });
 
+test('categorize: DKB Visa debit format (Merchant.Name/City) and real-world patterns', () => {
+  const c = (desc, source = 'dkb', amount = -1) => categorize({ desc, source, amount });
+  const visa = ' · VISA Debitkartenumsatz vom 13.02.2026';
+  assert.equal(c(`LEBENSMITTEL.ASIA.MARKT/Berlin${visa}`), 'groceries');
+  assert.equal(c(`EDK.FOODCONCEPT/BERLIN${visa}`), 'groceries');
+  assert.equal(c(`SumUp...Coffee.Shop/Berlin${visa}`), 'dining');
+  assert.equal(c(`Bio.Company/Berlin${visa}`), 'groceries');
+  assert.equal(c(`Parkhaus Mitte${visa}`), 'transport');
+  assert.equal(c(`Transports Metropolitans de Barcelona${visa}`), 'transport');
+  assert.equal(c('WWW.DEUTSCHEBAHN.COM (N BERLIN', 'amex'), 'transport');
+  assert.equal(c('BOOKING.COM AMSTERDAM', 'amex'), 'travel');
+  assert.equal(c(`APPLE.COM.BILL/ITUNES.COM${visa}`), 'subscriptions');
+  assert.equal(c('eprimo GmbH Flughafenstrase 20 · eprimo sagt danke'), 'housing');
+  assert.equal(c('Stadtkasse Musterstadt · 123/Kita freie Traeger Beitrag'), 'childcare');
+  assert.equal(c(`PayPal - Ratenzahlung${visa}`), 'loan');
+  assert.equal(c(`Sparkasse Musterstadt${visa}`), 'cash');
+  assert.equal(suggestKeyword(`LS.Kugel.UG/Musterstadt${visa}`), 'kugel ug');
+  assert.equal(suggestKeyword(`SumUp...Kugel.UG..haft/Musterstadt${visa}`), 'kugel ug');
+  assert.equal(suggestKeyword(`Hitchcoq/Musterstadt${visa}`), 'hitchcoq');
+});
+
 test('suggestKeyword', () => {
   assert.equal(suggestKeyword('KLEINER LADEN BERLIN'), 'kleiner laden');
   assert.equal(suggestKeyword('REWE Markt GmbH · REWE SAGT DANKE 1234'), 'rewe markt');
